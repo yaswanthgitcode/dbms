@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register as Donor - Life Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="assets/logo.png" />
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<script>
+    firebase.auth().onAuthStateChanged(user => {
+        if (!user) {
+            sessionStorage.setItem('fromRegister', 'true');
+            alert("Please log in first to register as a donor.");
+            window.location.href = "login.html";
+        }
+    });
+</script>
+
+<body class="bg-red-50 text-gray-800 font-sans">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md p-4 flex justify-between items-center">
+        <div class="text-xl font-bold text-red-600 flex items-center" style="margin-left: 30px; font-size: 32px;">
+            Life Flow
+        </div>
+        <nav class="space-x-4">
+            <a href="index.html" class="hover:underline">Home</a>
+            <a href="about.html" class="hover:underline">About</a>
+            <a href="register.html" class="text-red-600 font-medium underline">Register as Donor</a>
+            <a href="request.html" class="hover:underline">Find a Donor</a>
+            <a href="login.html" class="hover:underline">Login</a>
+        </nav>
+    </header>
+
+    <!-- Register Form -->
+    <section class="py-12 px-6 max-w-xl mx-auto bg-white mt-10 rounded shadow">
+        <h2 class="text-3xl font-bold text-red-700 mb-6 text-center">Become a Donor</h2>
+        <form id="donorForm" class="space-y-4">
+
+            <div>
+                <label class="block text-sm font-medium">Full Name</label>
+                <input type="text" name="name" required class="w-full border rounded px-4 py-2 mt-1" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Age</label>
+                <input type="number" name="age" min="18" max="65" required
+                    class="w-full border rounded px-4 py-2 mt-1" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Gender</label>
+                <select name="gender" required class="w-full border rounded px-4 py-2 mt-1">
+                    <option value="">Select Gender</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Blood Group</label>
+                <select name="bloodGroup" required class="w-full border rounded px-4 py-2 mt-1">
+                    <option value="">Select Blood Group</option>
+                    <option>A+</option>
+                    <option>A-</option>
+                    <option>B+</option>
+                    <option>B-</option>
+                    <option>AB+</option>
+                    <option>AB-</option>
+                    <option>O+</option>
+                    <option>O-</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Location</label>
+                <input type="text" name="location" required class="w-full border rounded px-4 py-2 mt-1" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium">Phone Number</label>
+                <input type="tel" name="phone" required pattern="[0-9]{10}" maxlength="10"
+                    class="w-full border rounded px-4 py-2 mt-1" />
+            </div>
+
+            <button type="submit"
+                class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition duration-200">
+                Submit
+            </button>
+        </form>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t p-4 text-center text-sm text-gray-500 mt-10">
+        &copy; 2025 Life Flow Organization. All rights reserved.
+    </footer>
+
+    <!-- 🔒 Login Required Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg text-center">
+            <h2 class="text-xl font-bold text-red-600 mb-4">Login Required</h2>
+            <p class="text-gray-700 mb-6">You must be logged in to access the registration form.</p>
+            <button id="goToLogin"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded w-full transition duration-200">
+                Go to Login
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase Setup + Firestore Script -->
+   <script>
+    // Firebase Setup
+    const firebaseConfig = {
+        apiKey: "AIzaSyAjFZ27bD7e_vcp28D2x-bk-Hr67qTEd58",
+        authDomain: "bdms-dc86b.firebaseapp.com",
+        projectId: "bdms-dc86b",
+        storageBucket: "bdms-dc86b.firebasestorage.app",
+        messagingSenderId: "314665555568",
+        appId: "1:314665555568:web:153dbe92ff88e1470c86b5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // Redirect if not logged in
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            document.getElementById("loginModal").classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+            document.getElementById("goToLogin").addEventListener("click", () => {
+                window.location.href = "login.html";
+            });
+        }
+    });
+
+    const form = document.getElementById("donorForm");
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const user = auth.currentUser;
+        if (!user) {
+            alert("You must be logged in.");
+            return;
+        }
+
+        const name = form.name.value.trim();
+        const age = parseInt(form.age.value);
+        const gender = form.gender.value;
+        const bloodGroup = form.bloodGroup.value;
+        const location = form.location.value.trim();
+        const phone = form.phone.value.trim();
+
+        // ✅ Validations
+        if (!/^\d{10}$/.test(phone)) {
+            alert("Phone number must be 10 digits.");
+            return;
+        }
+
+        if (age < 18 || age > 65) {
+            alert("Age must be between 18 and 65.");
+            return;
+        }
+
+        try {
+            // 🔍 Check if user has already registered as donor (limit to 1)
+            const snapshot = await db.collection("donors").where("userId", "==", user.uid).get();
+
+            if (snapshot.size >= 2) {  // ❗ Change to >= 2 if you want to allow 2 registrations
+                alert("You have already registered as a donor. Multiple entries are not allowed.");
+                return;
+            }
+
+            // ✅ Add donor record
+            await db.collection("donors").add({
+                userId: user.uid,
+                name,
+                age,
+                gender,
+                bloodGroup,
+                location,
+                phone,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert("Registration successful!");
+            form.reset();
+            window.location.href = "dashboard.html"; // redirect after success
+        } catch (error) {
+            console.error("Error adding donor: ", error);
+            alert("Something went wrong. Try again.");
+        }
+    });
+</script>
+
+</body>
+
+</html>

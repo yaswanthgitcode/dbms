@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Life Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="assets/logo.png" />
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+
+<body class="bg-red-50 font-sans min-h-screen">
+    <header class="bg-white shadow-md p-4 flex justify-between items-center">
+        <div class="text-2xl font-bold text-red-600 ml-6">Life Flow Dashboard</div>
+        <div class="flex gap-4 mr-6">
+            <a href="index.html" class="bg-gray-200 text-red-600 px-4 py-2 rounded hover:bg-gray-300">Home</a>
+            <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Logout</button>
+        </div>
+    </header>
+
+    <main class="p-6 max-w-6xl mx-auto space-y-10">
+        <!-- User Info -->
+        <section class="bg-white rounded shadow p-6">
+            <h2 class="text-xl font-bold text-red-600 mb-4">Your Profile</h2>
+            <div id="userInfo" class="text-gray-700 space-y-1"></div>
+        </section>
+
+        <!-- Donor Info -->
+        <section class="bg-white rounded shadow p-6">
+            <h2 class="text-xl font-bold text-red-600 mb-4">Donor Registration</h2>
+            <div id="donorInfo" class="text-gray-700"></div>
+        </section>
+
+        <!-- My Requests -->
+        <section class="bg-white rounded shadow p-6">
+            <h2 class="text-xl font-bold text-red-600 mb-4">Your Blood Requests</h2>
+            <div id="myRequests" class="space-y-4"></div>
+        </section>
+
+        <!-- Other Requests -->
+        <section class="bg-white rounded shadow p-6">
+            <h2 class="text-xl font-bold text-red-600 mb-4">Requests from Others</h2>
+            <div id="otherRequests" class="space-y-4"></div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow hidden"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjFZ27bD7e_vcp28D2x-bk-Hr67qTEd58",
+            authDomain: "bdms-dc86b.firebaseapp.com",
+            projectId: "bdms-dc86b",
+            storageBucket: "bdms-dc86b.appspot.com",
+            messagingSenderId: "314665555568",
+            appId: "1:314665555568:web:153dbe92ff88e1470c86b5"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const userInfoDiv = document.getElementById('userInfo');
+        const donorInfoDiv = document.getElementById('donorInfo');
+        const myRequestsDiv = document.getElementById('myRequests');
+        const otherRequestsDiv = document.getElementById('otherRequests');
+        const toast = document.getElementById("toast");
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.remove("hidden");
+            setTimeout(() => toast.classList.add("hidden"), 3000);
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            if (typeof value === 'string') {
+                return new Date(value).toLocaleString();
+            }
+            if (value.toDate) {
+                return value.toDate().toLocaleString();
+            }
+            return '';
+        }
+
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) return window.location.href = 'login.html';
+
+            const uid = user.uid;
+            const userDoc = await db.collection("users").doc(uid).get();
+            const userData = userDoc.data();
+
+            userInfoDiv.innerHTML = `
+        <p><strong>Name:</strong> ${userData.name}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Phone:</strong> ${userData.phone}</p>
+        <p><strong>Address:</strong> ${userData.address}</p>
+      `;
+
+            // Donor Info
+            const donorSnap = await db.collection("donors").where("userId", "==", uid).get();
+
+            if (donorSnap.empty) {
+                donorInfoDiv.innerHTML = `<p class="text-gray-500">You are not registered as a donor.</p>`;
+            } else {
+                const donor = donorSnap.docs[0].data();
+                donorInfoDiv.innerHTML = `
+          <p><strong>Blood Group:</strong> ${donor.bloodGroup}</p>
+          <p><strong>Age:</strong> ${donor.age}</p>
+          <p><strong>Gender:</strong> ${donor.gender}</p>
+          <p><strong>Location:</strong> ${donor.location}</p>
+          <button onclick="withdrawDonor('${donorSnap.docs[0].id}')" class="mt-2 bg-red-600 text-white px-3 py-1 rounded">Withdraw</button>
+        `;
+            }
+
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+
+
+            // My Requests
+            uid: user.uid
+
+            const myReqSnap = await db.collection("bloodRequests").where("uid", "==", uid).get();
+            myRequestsDiv.innerHTML = myReqSnap.empty ? `<p class='text-gray-500'>No requests made.</p>` :
+                myReqSnap.docs.map(doc => {
+                    const r = doc.data();
+                    const donorInfo = r.donorAccepted ? `
+            <div class='mt-2 bg-green-50 p-2 rounded'>
+              <p class='text-green-600 font-semibold'>Accepted by:</p>
+              <p>Name: ${r.donorAccepted.name}</p>
+              <p>Email: ${r.donorAccepted.email}</p>
+              <p>Phone: ${r.donorAccepted.phone}</p>
+              <p>Address: ${r.donorAccepted.address}</p>
+            </div>` : '';
+                    const status = r.donorAccepted ? 'Accepted' : (r.status === 'cancelled' ? 'Cancelled' : 'Pending');
+                    const badgeColor = r.status === 'cancelled' ? 'text-gray-500' : r.donorAccepted ? 'text-green-600' : 'text-yellow-600';
+
+                    return `
+            <div class="border rounded p-4">
+              <p><strong>Blood Group:</strong> ${r.bloodGroup}</p>
+              <p><strong>Location:</strong> ${r.address}</p>
+            <p><strong>Date:</strong> ${formatDate(r.requiredDate)}</p>
+
+              <p><strong>Status:</strong> <span class="text-sm font-semibold ${badgeColor}">${status}</span></p>
+              ${donorInfo}
+              <button onclick="cancelRequest('${doc.id}')" class="mt-2 text-red-600 text-sm underline">Cancel</button>
+            </div>`;
+                }).join('');
+
+            // Other Requests
+            const otherReqSnap = await db.collection("bloodRequests").where("uid", "!=", uid).get();
+            otherRequestsDiv.innerHTML = otherReqSnap.empty ? `<p class='text-gray-500'>No other requests.</p>` :
+                otherReqSnap.docs.map(doc => {
+                    const r = doc.data();
+                    if (r.donorAcceptedId) return ''; // skip accepted
+                    return `
+            <div class="border rounded p-4">
+              <p><strong>Name:</strong> ${r.attendeeFirstName || ''} ${r.attendeeLastName || ''}</p>
+              <p><strong>Phone:</strong> ${r.attendeeMobile || ''}</p>
+              <p><strong>Blood Group:</strong> ${r.bloodGroup}</p>
+              <p><strong>Location:</strong> ${r.address || ''}</p>
+              <button onclick="acceptRequest('${doc.id}')" class="mt-2 bg-green-600 text-white px-3 py-1 rounded">Accept Request</button>
+            </div>`;
+                }).join('');
+        });
+
+        async function withdrawDonor(id) {
+            await db.collection("donors").doc(id).delete();
+            showToast("Donor registration withdrawn.");
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        async function cancelRequest(id) {
+            await db.collection("bloodRequests").doc(id).update({
+                status: "cancelled"
+            });
+            showToast("Request cancelled.");
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        async function acceptRequest(id) {
+            const user = auth.currentUser;
+            const userDoc = await db.collection("users").doc(user.uid).get();
+            const data = userDoc.data();
+            await db.collection("bloodRequests").doc(id).update({
+                donorAcceptedId: user.uid,
+                donorAccepted: {
+                    name: data.name,
+                    email: user.email,
+                    phone: data.phone,
+                    address: data.address
+                }
+            });
+            showToast("You accepted the request.");
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            auth.signOut().then(() => location.href = 'login.html');
+        });
+    </script>
+</body>
+
+</html>

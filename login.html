@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login or Sign Up - Life Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="icon" href="assets/logo.png" />
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+
+<body class="bg-red-50 flex items-center justify-center min-h-screen">
+
+  <!-- Role Selection Modal -->
+  <div id="roleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+      <h2 class="text-xl font-bold mb-4 text-center text-red-600">Select Login Type</h2>
+      <div class="flex flex-col gap-4">
+        <button onclick="selectRole('user')"
+          class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center justify-center gap-2">
+          <i class="fas fa-user"></i> User Login / Signup
+        </button>
+        <button onclick="selectRole('hospital')"
+          class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2">
+          <i class="fas fa-hospital"></i> Hospital Login / Signup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Form -->
+  <div class="bg-white shadow-lg rounded-lg p-8 max-w-md w-full">
+    <h2 class="text-2xl font-bold text-center text-red-600 mb-6">Welcome to Life Flow</h2>
+
+    <form id="authForm" class="space-y-4">
+      <input type="email" id="email" placeholder="Email" required class="w-full px-4 py-2 border rounded" />
+
+      <div class="relative">
+        <input type="password" id="password" placeholder="Password" required
+          class="w-full px-4 py-2 border rounded pr-10" />
+        <button type="button" id="togglePassword"
+          class="absolute top-1/2 right-3 -translate-y-1/2 text-sm text-gray-500">Show</button>
+      </div>
+
+      <!-- Sign Up Additional Fields -->
+      <div id="signupFields" class="space-y-4 hidden">
+        <input type="password" id="confirmPassword" placeholder="Confirm Password"
+          class="w-full px-4 py-2 border rounded" />
+        <input type="text" id="name" placeholder="Full Name / Hospital Name" class="w-full px-4 py-2 border rounded" />
+        <input type="tel" id="phone" placeholder="Phone Number (10 digits)" maxlength="10" pattern="\d{10}"
+          class="w-full px-4 py-2 border rounded" />
+        <textarea id="address" placeholder="Address" class="w-full px-4 py-2 border rounded"></textarea>
+      </div>
+
+      <div class="flex justify-between text-sm text-gray-600">
+        <label><input type="radio" name="mode" value="login" checked /> Login</label>
+        <label><input type="radio" name="mode" value="signup" /> Sign Up</label>
+      </div>
+
+      <button type="submit" class="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">Continue</button>
+    </form>
+
+    <p id="authMessage" class="text-sm text-center mt-4 text-red-600"></p>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAjFZ27bD7e_vcp28D2x-bk-Hr67qTEd58",
+      authDomain: "bdms-dc86b.firebaseapp.com",
+      projectId: "bdms-dc86b",
+      storageBucket: "bdms-dc86b.appspot.com",
+      messagingSenderId: "314665555568",
+      appId: "1:314665555568:web:153dbe92ff88e1470c86b5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const form = document.getElementById('authForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const nameInput = document.getElementById('name');
+    const phoneInput = document.getElementById('phone');
+    const addressInput = document.getElementById('address');
+    const signupFields = document.getElementById('signupFields');
+    const message = document.getElementById('authMessage');
+    const togglePassword = document.getElementById('togglePassword');
+
+    // Toggle password visibility
+    togglePassword.addEventListener('click', () => {
+      const type = passwordInput.type === 'password' ? 'text' : 'password';
+      passwordInput.type = type;
+      togglePassword.textContent = type === 'password' ? 'Show' : 'Hide';
+    });
+
+    // Toggle between login and signup
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const selected = document.querySelector('input[name="mode"]:checked').value;
+        signupFields.classList.toggle('hidden', selected === 'login');
+      });
+    });
+
+    // Role selection
+    function selectRole(role) {
+      sessionStorage.setItem('role', role);
+      document.getElementById('roleModal').classList.add('hidden');
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const role = sessionStorage.getItem('role');
+
+      if (!role) {
+        message.textContent = 'Please select login type first.';
+        return;
+      }
+
+      try {
+        if (mode === 'login') {
+          const userCred = await auth.signInWithEmailAndPassword(email, password);
+          const docRef = db.collection('users').doc(userCred.user.uid);
+          const docSnap = await docRef.get();
+
+          if (!docSnap.exists) {
+            message.textContent = 'No profile found.';
+            return;
+          }
+
+          const userData = docSnap.data();
+          const role = userData.role || 'user'; // fallback
+
+          message.textContent = 'Login successful!';
+          if (role === 'hospital') {
+            window.location.href = 'bloodbank-dashboard.html';
+          } else if (role === 'admin') {
+            window.location.href = 'admin-dashboard.html';
+          } else {
+            window.location.href = 'dashboard.html';
+          }
+
+        } else {
+          const confirmPassword = confirmPasswordInput.value;
+          const name = nameInput.value.trim();
+          const phone = phoneInput.value.trim();
+          const address = addressInput.value.trim();
+
+          if (password !== confirmPassword) {
+            message.textContent = 'Passwords do not match';
+            return;
+          }
+
+          if (!/^[0-9]{10}$/.test(phone)) {
+            message.textContent = 'Phone number must be 10 digits';
+            return;
+          }
+
+          const userCred = await auth.createUserWithEmailAndPassword(email, password);
+          await db.collection("users").doc(userCred.user.uid).set({
+            name,
+            email,
+            phone,
+            address,
+            role: "user", // default role
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          message.textContent = 'Signup successful!';
+          window.location.href = 'dashboard.html';
+        }
+      } catch (err) {
+        message.textContent = err.message;
+      }
+    });
+  </script>
+
+</body>
+
+</html>
